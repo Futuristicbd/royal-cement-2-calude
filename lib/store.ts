@@ -9,14 +9,16 @@ const FRAME_PREFIX = "frames/";
 export class StorageNotConfiguredError extends Error {
   constructor() {
     super(
-      "Vercel Blob is not configured. Connect a Blob store to this project in the Vercel dashboard (Storage → Create Database → Blob → Connect), which sets BLOB_READ_WRITE_TOKEN automatically."
+      "Vercel Blob is not configured. Connect a Blob store to this project in the Vercel dashboard (Storage → Create Database → Blob → Connect Project) and redeploy."
     );
     this.name = "StorageNotConfiguredError";
   }
 }
 
 function assertConfigured() {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  // A connected Blob store injects BLOB_STORE_ID (OIDC auth, no token needed on
+  // Vercel) — or a classic BLOB_READ_WRITE_TOKEN. Either one means we're wired up.
+  if (!process.env.BLOB_READ_WRITE_TOKEN && !process.env.BLOB_STORE_ID) {
     throw new StorageNotConfiguredError();
   }
 }
@@ -57,6 +59,7 @@ export async function createCampaign(
       access: "public",
       contentType: input.frameContentType,
       addRandomSuffix: false,
+      allowOverwrite: true,
       cacheControlMaxAge: 31536000,
     }
   );
@@ -76,7 +79,8 @@ export async function createCampaign(
     access: "public",
     contentType: "application/json",
     addRandomSuffix: false,
-    cacheControlMaxAge: 0,
+    allowOverwrite: true,
+    cacheControlMaxAge: 60, // v2 minimum; reads are also cache-busted below
   });
 
   return campaign;
